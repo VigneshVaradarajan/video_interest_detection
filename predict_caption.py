@@ -8,8 +8,7 @@ import pickle as pickle
 import search_and_predict_sequence
 from keras.models import load_model
 import matplotlib.pyplot as plt
-
-
+from keras import backend as K
 
 """
 Function that returns all the images of the dataset
@@ -51,16 +50,15 @@ Input : dataset_name - Dataset name to work on.
 """
 
 
-def predict_caption(class_name, img):
+def predict_caption(class_name, img, inception_model, caption_model,graph):
     print(class_name)
+    # K.clear_session()
 
-    model = InceptionResNetV2(weights='imagenet')
-    # returns all the vectors before classification
-    updated_model = Model(model.input, model.layers[-2].output)
-    print("Model created")
-    feature_vector = run_inceptionRestNet(img, updated_model)
+    # inception_model = pickle.load(open('Model/inception_model.pkl', 'rb'))
+    feature_vector = run_inceptionRestNet(img, inception_model)
+    print("Feature vector predicted")
 
-    model = load_model("Model/model_"+class_name+".h5")
+    # model = load_model("Model/model_"+class_name+".h5")
 
     with open("Pickle/"+class_name+"_max_length.pkl", "rb") as encoded_pickle:
         max_length = pickle.load(encoded_pickle)
@@ -72,9 +70,11 @@ def predict_caption(class_name, img):
         wordtoix = pickle.load(encoded_pickle)
 
     photo = feature_vector.reshape((1,1536))
-    x = plt.imread(img)
-    plt.imshow(x)
+    print(feature_vector)
+    print(photo)
+    # x = plt.imread(img)
+    # plt.imshow(x)
     # print(search_and_predict_sequence.greedySearch(photo, model, max_length, wordtoix, ixtoword))
-    print(search_and_predict_sequence.beamSearch(photo, model, max_length, wordtoix, ixtoword))
+    return search_and_predict_sequence.beamSearch(photo, caption_model, max_length, wordtoix, ixtoword, graph)
 
 

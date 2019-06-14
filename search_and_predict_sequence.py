@@ -3,7 +3,7 @@ import numpy as np
 from keras.preprocessing import sequence
 
 
-def beamSearch(photo, model, max_length, wordtoix, ixtoword):
+def beamSearch(photo, model, max_length, wordtoix, ixtoword, graph):
     beam_index = 3
     start = [wordtoix["startseq"]]
 
@@ -13,7 +13,8 @@ def beamSearch(photo, model, max_length, wordtoix, ixtoword):
         temp = []
         for s in start_word:
             par_caps = sequence.pad_sequences([s[0]], maxlen=max_length, padding='post')
-            preds = model.predict([photo, par_caps])
+            with graph.as_default():
+                preds = model.predict([photo, par_caps])
 
             word_preds = np.argsort(preds[0])[-beam_index:]
 

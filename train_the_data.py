@@ -11,11 +11,9 @@ from keras.layers.wrappers import Bidirectional
 from keras.optimizers import Adam, RMSprop
 
 
-
-
 def train_the_data(class_name, max_length, vocab_size, embedding_dim, embedding_matrix, train_descriptions, train_features, wordtoix):
     image_model = Sequential([
-        Dense(embedding_dim, input_shape=(2048,), activation='relu'),
+        Dense(embedding_dim, input_shape=(1536,), activation='relu'),
         RepeatVector(max_length)
     ])
 

@@ -6,8 +6,7 @@ from keras.preprocessing import image
 from keras.models import Model
 import numpy as np
 from keras.applications.inception_resnet_v2 import preprocess_input
-import time
-import torchvision.models as models
+
 
 import pickle as pickle
 
