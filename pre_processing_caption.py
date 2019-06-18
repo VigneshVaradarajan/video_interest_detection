@@ -1,57 +1,40 @@
 import string
 import glob
 import pickle as pickle
+import common_functions as common_functions
 
-# load doc into memory
-def load_doc(filename):
-	# open the file as read only
-	file = open(filename, 'r')
-	# read all text
-	text = file.read()
-	# close the file
-	file.close()
-	return text
 
-def load_descriptions(doc):
-	mapping = dict()
-	# process lines
-	for line in doc.split('\n'):
-		# split line by white space
+def read_descriptions_file(document):
+	image_description_mappings = dict()
+	for line in document.split('\n'):
 		tokens = line.split()
 		if len(line) < 2:
 			continue
-		# take the first token as the image id, the rest as the description
-		image_id, image_desc = tokens[0], tokens[1:]
-		# extract filename from image id
-		image_id = image_id.split('.')[0]
-		# convert description tokens back to string
-		image_desc = ' '.join(image_desc)
-		# create the list if needed
-		if image_id not in mapping:
-			mapping[image_id] = list()
-		# store description
-		mapping[image_id].append(image_desc)
-	return mapping
+		id, descriptions = tokens[0], tokens[1:]
+		id = id.split('.')[0]
+		descriptions = ' '.join(descriptions)
+		if id not in image_description_mappings:
+			image_description_mappings[id] = list()
+		image_description_mappings[id].append(descriptions)
+	return image_description_mappings
 
 
-def clean_descriptions(descriptions):
-	# prepare translation table for removing punctuation
-	table = str.maketrans('', '', string.punctuation)
-	for key, desc_list in descriptions.items():
-		for i in range(len(desc_list)):
-			desc = desc_list[i]
-			# tokenize
-			desc = desc.split()
-			# convert to lower case
-			desc = [word.lower() for word in desc]
-			# remove punctuation from each token
-			desc = [w.translate(table) for w in desc]
-			# remove hanging 's' and 'a'
-			desc = [word for word in desc if len(word)>1]
-			# remove tokens with numbers in them
-			desc = [word for word in desc if word.isalpha()]
-			# store as string
-			desc_list[i] =  ' '.join(desc)
+def clean_description_data(descriptions):
+	# Replace all punctuations to empty character
+	remove_punctuation = str.maketrans('', '', string.punctuation)
+	for key, list_of_descriptions in descriptions.items():
+		for i in range(len(list_of_descriptions)):
+			description = list_of_descriptions[i]
+			description = description.split()
+			# convert all the words to lowercase
+			description = [word.lower() for word in description]
+			# Remove all punctuations
+			description = [w.translate(remove_punctuation) for w in description]
+			# Remove any word whose length is less than 1
+			description = [word for word in description if len(word)>1]
+			# Remove any word whose conetents are not alphabets
+			description = [word for word in description if word.isalpha()]
+			list_of_descriptions[i] = ' '.join(description)
 
 # convert the loaded descriptions into a vocabulary of words
 def to_vocabulary(descriptions):
@@ -74,7 +57,7 @@ def save_descriptions(descriptions, filename):
 
 # load a pre-defined list of photo identifiers
 def load_set(filename):
-	doc = load_doc(filename)
+	doc = common_functions.read_document(filename)
 	dataset = list()
 	# process line by line
 	for line in doc.split('\n'):
@@ -89,7 +72,7 @@ def load_set(filename):
 # load clean descriptions into memory
 def load_clean_descriptions(filename, dataset):
 	# load document
-	doc = load_doc(filename)
+	doc = common_functions.read_document(filename)
 	descriptions = dict()
 	for line in doc.split('\n'):
 		# split line by white space
@@ -113,16 +96,16 @@ def load_clean_descriptions(filename, dataset):
 def pre_process_captions(class_name):
 	if class_name=="general":
 		filename = "Dataset/general_captions/Flickr8k.token.txt"
-		doc = load_doc(filename)
+		doc = common_functions.read_document(filename)
 		print(doc[:300])
 
 		# parse descriptions
-		descriptions = load_descriptions(doc)
+		descriptions = read_descriptions_file(doc)
 		print('Loaded: %d ' % len(descriptions))# parse descriptions
-		descriptions = load_descriptions(doc)
+		descriptions = read_descriptions_file(doc)
 		print('Loaded: %d ' % len(descriptions))
 		# clean descriptions
-		clean_descriptions(descriptions)
+		clean_description_data(descriptions)
 
 		# summarize vocabulary
 		vocabulary = to_vocabulary(descriptions)
@@ -150,18 +133,6 @@ def pre_process_captions(class_name):
 		for i in img:  # img is list of full path names of all images
 			if i[len(images):] in train_images:  # Check if the image belongs to training set
 				train_img.append(i)  # Add it to the list of train images
-
-		# Below file conatains the names of images to be used in test data
-		test_images_file = 'Dataset/general_captions/Flickr_8k.testImages.txt'
-		# Read the validation image names in a set# Read the test image names in a set
-		test_images = set(open(test_images_file, 'r').read().strip().split('\n'))
-
-		# Create a list of all the test images with their full path names
-		test_img = []
-
-		for i in img:  # img is list of full path names of all images
-			if i[len(images):] in test_images:  # Check if the image belongs to test set
-				test_img.append(i)  # Add it to the list of test images
 
 		# descriptions
 		train_descriptions = load_clean_descriptions("Descriptions/"+class_name+'_descriptions.txt', train)

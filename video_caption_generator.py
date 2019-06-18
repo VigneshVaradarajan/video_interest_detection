@@ -14,8 +14,11 @@ import os
 from keras import backend as K
 import tensorflow as tf
 
+from flask_cors import CORS
+
 from flask import Flask, request
 app = Flask(__name__)
+CORS(app)
 
 
 inception_model = None
