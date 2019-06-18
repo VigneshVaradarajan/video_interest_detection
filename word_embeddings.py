@@ -1,32 +1,33 @@
 
 import os
 import numpy as np
+"""
+Generates 200 length vector for each word
+If the word is not present in the index, it returns all zeros for taht word.
+
+This requires glove directory to be downloaded and installed in Glove Directory
+"""
 
 
-def word_embedding(vocab_size,wordtoix):
-    # Load Glove vectors
-    glove_dir = 'glove'
-    embeddings_index = {}  # empty dictionary
-    f = open(os.path.join(glove_dir, 'glove.6B.200d.txt'), encoding="utf-8")
+def word_embedding(vocabulary_size, word_to_index):
+    # Loading all the  Glove vectors
+    glove_directory_location = 'glove'
+    embeddings_index = {}  # empty
 
-    for line in f:
-        values = line.split()
-        word = values[0]
-        coefs = np.asarray(values[1:], dtype='float32')
-        embeddings_index[word] = coefs
-    f.close()
-    print('Found %s word vectors.' % len(embeddings_index))
+    with open(os.path.join(glove_directory_location, 'glove.6B.200d.txt'), encoding="utf-8") as glove_file:
+        for each_line in glove_file:
+            values = each_line.split()
+            word = values[0]
+            coefficients = np.asarray(values[1:], dtype='float32')
+            embeddings_index[word] = coefficients
 
-    embedding_dim = 200
+    embedding_vector_length = 200
 
-    # Get 200-dim dense vector for each of the 10000 words in out vocabulary
-    embedding_matrix = np.zeros((vocab_size, embedding_dim))
+    embedding_matrix = np.zeros((vocabulary_size, embedding_vector_length))
 
-    for word, i in wordtoix.items():
-        # if i < max_words:
+    for word, i in word_to_index.items():
         embedding_vector = embeddings_index.get(word)
         if embedding_vector is not None:
-            # Words not found in the embedding index will be all zeros
             embedding_matrix[i] = embedding_vector
 
-    return embedding_dim,embedding_matrix
+    return embedding_vector_length, embedding_matrix
