@@ -1,3 +1,4 @@
+
 # load doc into memory
 def read_document(filename):
     # open the file as read only

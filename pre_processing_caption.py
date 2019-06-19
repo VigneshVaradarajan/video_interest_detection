@@ -36,102 +36,90 @@ def clean_description_data(descriptions):
 			description = [word for word in description if word.isalpha()]
 			list_of_descriptions[i] = ' '.join(description)
 
-# convert the loaded descriptions into a vocabulary of words
-def to_vocabulary(descriptions):
-	# build a list of all description strings
-	all_desc = set()
-	for key in descriptions.keys():
-		[all_desc.update(d.split()) for d in descriptions[key]]
-	return all_desc
 
-# save descriptions to file, one per line
-def save_descriptions(descriptions, filename):
-	lines = list()
-	for key, desc_list in descriptions.items():
-		for desc in desc_list:
-			lines.append(key + ' ' + desc)
-	data = '\n'.join(lines)
-	file = open(filename, 'w')
-	file.write(data)
-	file.close()
 
-# load a pre-defined list of photo identifiers
+# save the descriptions to a text file
+def save_to_file(descriptions, filename):
+	lines_in_file = list()
+	for key, descriptions_list in descriptions.items():
+		for desc in descriptions_list:
+			lines_in_file.append(key + ' ' + desc)
+	descriptions_data = '\n'.join(lines_in_file)
+	with open(filename, 'w') as f:
+		f.write(descriptions_data)
+
+
+# load a pre-defined list of image file names
 def load_set(filename):
-	doc = common_functions.read_document(filename)
-	dataset = list()
-	# process line by line
-	for line in doc.split('\n'):
-		# skip empty lines
-		if len(line) < 1:
-			continue
-		# get the image identifier
-		identifier = line.split('.')[0]
-		dataset.append(identifier)
-	return set(dataset)
+	document = common_functions.read_document(filename)
+	list_of_file_names = list()
+	for line in document.split('\n'):
+		if len(line) >= 1:
+			# get the image name
+			image_name = line.split('.')[0]
+			list_of_file_names.append(image_name)
+	return set(list_of_file_names)
 
-# load clean descriptions into memory
+
+# load the descriptions from file into memory
 def load_clean_descriptions(filename, dataset):
-	# load document
 	doc = common_functions.read_document(filename)
 	descriptions = dict()
 	for line in doc.split('\n'):
-		# split line by white space
-		tokens = line.split()
-		# split id from description
-		image_id, image_desc = tokens[0], tokens[1:]
-		# skip images not in the set
-		if image_id in dataset:
-			# create list
-			if image_id not in descriptions:
-				descriptions[image_id] = list()
-			# wrap description in tokens
-			desc = 'startseq ' + ' '.join(image_desc) + ' endseq'
-			# store
-			descriptions[image_id].append(desc)
+		tokens_in_each_line = line.split()
+		id, description = tokens_in_each_line[0], tokens_in_each_line[1:]
+		if id in dataset:
+			if id not in descriptions:
+				descriptions[id] = list()
+			description = 'captStrt ' + ' '.join(description) + ' captEnd'
+			descriptions[id].append(description)
 	return descriptions
 
 
+# convert a dictionary of clean descriptions to a list of descriptions
+def to_lines(descriptions):
+	all_desc = list()
+	for key in descriptions.keys():
+		[all_desc.append(d) for d in descriptions[key]]
+	return all_desc
+
+
+# calculate the length of the description with the most words
+def get_max_length(descriptions):
+	all_descriptions = list()
+	for key in descriptions.keys():
+		[all_descriptions.append(d) for d in descriptions[key]]
+	return max(len(d.split()) for d in all_descriptions)
 
 
 def pre_process_captions(class_name):
-	if class_name=="general":
+	if class_name == "general":
 		filename = "Dataset/general_captions/Flickr8k.token.txt"
-		doc = common_functions.read_document(filename)
-		print(doc[:300])
+		document = common_functions.read_document(filename)
+		print(document[:300])
 
-		# parse descriptions
-		descriptions = read_descriptions_file(doc)
-		print('Loaded: %d ' % len(descriptions))# parse descriptions
-		descriptions = read_descriptions_file(doc)
-		print('Loaded: %d ' % len(descriptions))
-		# clean descriptions
+		descriptions = read_descriptions_file(document)
+
 		clean_description_data(descriptions)
 
-		# summarize vocabulary
-		vocabulary = to_vocabulary(descriptions)
-		print('Original Vocabulary Size: %d' % len(vocabulary))
-
-		save_descriptions(descriptions, 'Descriptions/'+class_name+'_'+'descriptions.txt')
+		save_to_file(descriptions, 'Descriptions/' + class_name + '_' + 'descriptions.txt')
 
 		filename = 'Dataset/general_captions/Flickr_8k.trainImages.txt'
 		train = load_set(filename)
-		print('Dataset: %d' % len(train))
+		print('Loading the training Dataset: %d' % len(train))
 
-		# Below path contains all the images
-		images = 'Dataset/general_images/'
-		# Create a list of all image names in the directory
-		img = glob.glob(images + '*.jpg')
+		images_path = 'Dataset/general_images/'
+		list_of_images = glob.glob(images_path + '*.jpg')
 
-		# Below file conatains the names of images to be used in train data
 		train_images_file = 'Dataset/general_captions/Flickr_8k.trainImages.txt'
 		# Read the train image names in a set
 		train_images = set(open(train_images_file, 'r').read().strip().split('\n'))
 
-		# Create a list of all the training images with their full path names
+		# this contains all the training images
 		train_img = []
 
-		for i in img:  # img is list of full path names of all images
-			if i[len(images):] in train_images:  # Check if the image belongs to training set
+		for i in list_of_images:  # img is list of full path names of all images
+			if i[len(images_path):] in train_images:  # Check if the image belongs to training set
 				train_img.append(i)  # Add it to the list of train images
 
 		# descriptions
@@ -139,63 +127,47 @@ def pre_process_captions(class_name):
 		print('Descriptions: train=%d' % len(train_descriptions))
 
 		# Create a list of all the training captions
-		all_train_captions = []
-		for key, val in train_descriptions.items():
-			for cap in val:
-				all_train_captions.append(cap)
-		len(all_train_captions)
+		training_captions = []
+		for key, value in train_descriptions.items():
+			for caption in value:
+				training_captions.append(caption)
+		len(training_captions)
 
-		# Consider only words which occur at least 10 times in the corpus
+		# Pick words that occur more than 10 times.
 		word_count_threshold = 10
 		word_counts = {}
-		nsents = 0
-		for sent in all_train_captions:
-			nsents += 1
-			for w in sent.split(' '):
+		sentence_count = 0
+		for sentence in training_captions:
+			sentence_count += 1
+			for w in sentence.split(' '):
 				word_counts[w] = word_counts.get(w, 0) + 1
 
-		vocab = [w for w in word_counts if word_counts[w] >= word_count_threshold]
-		print('preprocessed words %d -> %d' % (len(word_counts), len(vocab)))
+		vocabulary = [w for w in word_counts if word_counts[w] >= word_count_threshold]
 
-		ixtoword = {}
-		wordtoix = {}
+		index_to_word = {}
+		word_to_index = {}
 
-		ix = 1
-		for w in vocab:
-			wordtoix[w] = ix
-			ixtoword[ix] = w
-			ix += 1
+		index = 1
+		for w in vocabulary:
+			word_to_index[w] = index
+			index_to_word[index] = w
+			index += 1
 
-		vocab_size = len(ixtoword) + 1  # one for appended 0's
+		vocab_size = len(index_to_word) + 1  # one for appended 0's
 
-		# convert a dictionary of clean descriptions to a list of descriptions
-		def to_lines(descriptions):
-			all_desc = list()
-			for key in descriptions.keys():
-				[all_desc.append(d) for d in descriptions[key]]
-			return all_desc
-
-		# calculate the length of the description with the most words
-		def max_length(descriptions):
-			lines = to_lines(descriptions)
-			return max(len(d.split()) for d in lines)
-
-		# determine the maximum sequence length
-		max_length = max_length(train_descriptions)
-		print('Description Length: %d' % max_length)
+		max_length = get_max_length(train_descriptions)
+		print('Max Description Length Length: ',  max_length)
 
 		with open("Pickle/general_wordtoix.pkl", "wb") as encoded_pickle:
-			pickle.dump(wordtoix, encoded_pickle)
+			pickle.dump(word_to_index, encoded_pickle)
 
 		with open("Pickle/general_ixtoword.pkl", "wb") as encoded_pickle:
-			pickle.dump(ixtoword, encoded_pickle)
+			pickle.dump(index_to_word, encoded_pickle)
 
 		with open("Pickle/general_max_length.pkl", "wb") as encoded_pickle:
-			pickle.dump(max_length
-						, encoded_pickle)
+			pickle.dump(max_length, encoded_pickle)
 
-
-		return max_length, vocab_size, train_descriptions, train_img, wordtoix
+		return max_length, vocab_size, train_descriptions, train_img, word_to_index
 
 
 
