@@ -217,5 +217,7 @@ Descriptions/*
 glove/*
 Model/*
 Pickle/*
+Cycle_Images/*
+yolo-coco/*
 
 .idea/*
