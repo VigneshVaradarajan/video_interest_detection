@@ -8,7 +8,7 @@ This functions runs the model multiple times, meanwhile generating the caption o
 
 def beamSearch(image_feature_vector, caption_generator_model, max_length, word_to_index, index_to_word, graph):
     beam_index = 3
-    start = [word_to_index["startseq"]]
+    start = [word_to_index["captStrt"]]
 
     start_word = [[start, 0.0]]
 
@@ -40,7 +40,7 @@ def beamSearch(image_feature_vector, caption_generator_model, max_length, word_t
 
     for i in intermediate_partial_caption:
         print(i)
-        if i != 'endseq':
+        if i != 'captEnd':
             generated_caption.append(i)
         else:
             break

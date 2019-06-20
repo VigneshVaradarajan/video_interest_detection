@@ -159,12 +159,7 @@ while True:
 				response = requests.request("POST", url, files=files, data=payload)
 
 				print(response.text)
-			#
-			# window = tk.Tk()
-			# window.title("SEE image and ENTER its information")
-			# window.geometry("600x400")  # You can drop this line if you want.
-			# window.configure(background='grey')
-			#
+
 
 			print(count)
 
