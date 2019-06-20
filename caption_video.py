@@ -1,13 +1,10 @@
-# USAGE
-# python yolo_video.py --input videos/airport.mp4 --output output/airport_output.avi --yolo yolo-coco
 
-# import the necessary packages
 import numpy as np
 import imutils
 import time
 import cv2
-import os
-
+import requests
+import copy
 # load the COCO class labels our YOLO model was trained on
 labelsPath = "yolo-coco\coco.names"
 LABELS = open(labelsPath).read().strip().split("\n")
@@ -49,101 +46,130 @@ except:
 	total = -1
 
 # loop over frames from the video file stream
-count = 0
+count = -1
 while True:
-	count += 1
-	if count%30 == 0:
+
+	if True :
 		start_time = time.time()
 		# read the next frame from the file
 		(grabbed, frame) = vs.read()
-
+		count += 1
 		# if the frame was not grabbed, then we have reached the end
 		# of the stream
 		if not grabbed:
 			break
+		if 	count%30 == 0 :
+			# if the frame dimensions are empty, grab them
+			if W is None or H is None:
+				(H, W) = frame.shape[:2]
 
-		# if the frame dimensions are empty, grab them
-		if W is None or H is None:
-			(H, W) = frame.shape[:2]
+			# construct a blob from the input frame and then perform a forward
+			# pass of the YOLO object detector, giving us our bounding boxes
+			# and associated probabilities
+			blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416),
+				swapRB=True, crop=False)
+			net.setInput(blob)
+			start = time.time()
+			layerOutputs = net.forward(ln)
+			end = time.time()
 
-		# construct a blob from the input frame and then perform a forward
-		# pass of the YOLO object detector, giving us our bounding boxes
-		# and associated probabilities
-		blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416),
-			swapRB=True, crop=False)
-		net.setInput(blob)
-		start = time.time()
-		layerOutputs = net.forward(ln)
-		end = time.time()
+			# initialize our lists of detected bounding boxes, confidences,
+			# and class IDs, respectively
+			boxes = []
+			confidences = []
+			classIDs = []
 
-		# initialize our lists of detected bounding boxes, confidences,
-		# and class IDs, respectively
-		boxes = []
-		confidences = []
-		classIDs = []
+			original_frame = copy.deepcopy(frame)
 
-		# loop over each of the layer outputs
-		for output in layerOutputs:
-			# loop over each of the detections
-			for detection in output:
-				# extract the class ID and confidence (i.e., probability)
-				# of the current object detection
-				scores = detection[5:]
-				classID = np.argmax(scores)
-				confidence = scores[classID]
+			# loop over each of the layer outputs
+			for output in layerOutputs:
+				# loop over each of the detections
+				for detection in output:
+					# extract the class ID and confidence (i.e., probability)
+					# of the current object detection
+					scores = detection[5:]
+					classID = np.argmax(scores)
+					confidence = scores[classID]
 
-				# filter out weak predictions by ensuring the detected
-				# probability is greater than the minimum probability
-				if confidence > 0.5:
-					# scale the bounding box coordinates back relative to
-					# the size of the image, keeping in mind that YOLO
-					# actually returns the center (x, y)-coordinates of
-					# the bounding box followed by the boxes' width and
-					# height
-					box = detection[0:4] * np.array([W, H, W, H])
-					(centerX, centerY, width, height) = box.astype("int")
+					# filter out weak predictions by ensuring the detected
+					# probability is greater than the minimum probability
+					if confidence > 0.5:
+						# scale the bounding box coordinates back relative to
+						# the size of the image, keeping in mind that YOLO
+						# actually returns the center (x, y)-coordinates of
+						# the bounding box followed by the boxes' width and
+						# height
+						box = detection[0:4] * np.array([W, H, W, H])
+						(centerX, centerY, width, height) = box.astype("int")
 
-					# use the center (x, y)-coordinates to derive the top
-					# and and left corner of the bounding box
-					x = int(centerX - (width / 2))
-					y = int(centerY - (height / 2))
+						# use the center (x, y)-coordinates to derive the top
+						# and and left corner of the bounding box
+						x = int(centerX - (width / 2))
+						y = int(centerY - (height / 2))
 
-					# update our list of bounding box coordinates,
-					# confidences, and class IDs
-					boxes.append([x, y, int(width), int(height)])
-					confidences.append(float(confidence))
-					classIDs.append(classID)
+						# update our list of bounding box coordinates,
+						# confidences, and class IDs
+						boxes.append([x, y, int(width), int(height)])
+						confidences.append(float(confidence))
+						classIDs.append(classID)
 
-		# apply non-maxima suppression to suppress weak, overlapping
-		# bounding boxes
-		idxs = cv2.dnn.NMSBoxes(boxes, confidences, 0.5,
-			0.5)
+			# apply non-maxima suppression to suppress weak, overlapping
+			# bounding boxes
+			idxs = cv2.dnn.NMSBoxes(boxes, confidences, 0.5,
+				0.5)
+			send_request = False
+			# ensure at least one detection exists
+			if len(idxs) > 0:
+				# loop over the indexes we are keeping
+				for i in idxs.flatten():
+					# extract the bounding box coordinates
+					(x, y) = (boxes[i][0], boxes[i][1])
+					(w, h) = (boxes[i][2], boxes[i][3])
 
-		# ensure at least one detection exists
-		if len(idxs) > 0:
-			# loop over the indexes we are keeping
-			for i in idxs.flatten():
-				# extract the bounding box coordinates
-				(x, y) = (boxes[i][0], boxes[i][1])
-				(w, h) = (boxes[i][2], boxes[i][3])
+					# draw a bounding box rectangle and label on the frame
+					color = [int(c) for c in COLORS[classIDs[i]]]
+					cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+					text = "{}: {:.4f}".format(LABELS[classIDs[i]],
+						confidences[i])
+					cv2.putText(frame, text, (x, y - 5),
+						cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+					if LABELS[classIDs[i]] == "car" or LABELS[classIDs[i]] == "bicycle" or LABELS[classIDs[i]] == "motorbike":
+						print("Vehicle detected")
+						send_request = True
+			both = np.hstack((original_frame, frame))
 
-				# draw a bounding box rectangle and label on the frame
-				color = [int(c) for c in COLORS[classIDs[i]]]
-				cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-				text = "{}: {:.4f}".format(LABELS[classIDs[i]],
-					confidences[i])
-				cv2.putText(frame, text, (x, y - 5),
-					cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+			cv2.imshow("window", both)
 
-		cv2.imshow("window", frame)
-		print(count)
+			if cv2.waitKey(1) & 0xFF == ord('q'):
+				break
 
-		if cv2.waitKey(1) & 0xFF == ord('q'):
-			break
+			if send_request:
+				cv2.imwrite("detected.jpg",original_frame)
+				url = "http://localhost:5000/generate"
+
+				with open('detected.jpg',"rb") as f:
+					image_to_be_sent = f.read()
+				files = {
+					"file": image_to_be_sent
+				}
+				payload = {
+					"class_name" : "general"
+				}
+
+				response = requests.request("POST", url, files=files, data=payload)
+
+				print(response.text)
+			#
+			# window = tk.Tk()
+			# window.title("SEE image and ENTER its information")
+			# window.geometry("600x400")  # You can drop this line if you want.
+			# window.configure(background='grey')
+			#
+
+			print(count)
 
 
 
-# release the file pointers
+
 print("[INFO] cleaning up...")
-writer.release()
 vs.release()
